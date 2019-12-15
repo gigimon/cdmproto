@@ -1,0 +1,2 @@
+class CDMError(Exception):
+    pass
