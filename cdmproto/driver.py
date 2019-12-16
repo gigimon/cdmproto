@@ -1,3 +1,4 @@
+import time
 import logging
 import typing as tp
 
@@ -55,7 +56,7 @@ class CDM:
         LOG.debug(f'Check if buffer has data: "{self.term.in_waiting}/{self.term.out_waiting}"')
         while True:
             data += self.term.read()
-
+            LOG.debug(f'Read from socket: {data}')
             if data[0] == consts.COMMANDS.ACK:
                 self.send(bytes([consts.COMMANDS.ENQ]))
                 data = bytes()
@@ -63,6 +64,7 @@ class CDM:
 
             if len(data) > 2 and data[-2] == consts.COMMANDS.ETX:
                 break
+            time.sleep(0.1)
         if data[0] != consts.COMMANDS.ACK and verify:
             self._verify_packet(data)  #Check why all responses has invalid bcc
         if self.term.in_waiting:
@@ -71,6 +73,7 @@ class CDM:
         return data
 
     def _build_packet(self, data: bytes) -> bytes:
+        data = self._to_bytes(data)
         LOG.debug(f'Build packet for data: "{self._to_hex(data)}"')
         data = bytes([len(data)]) + data + bytes([consts.COMMANDS.ETX])
         return bytes([consts.COMMANDS.STX]) + data + self.calc_bcc(data)
@@ -106,6 +109,12 @@ class CDM:
             raise exceptions.CDMError(f'Device has error: {result[3]}')
         return result
 
+    def get_last_status(self):
+        LOG.debug('Read last status')
+        self.send(consts.COMMANDS.LAST_STATUS)
+        result = self.read()
+        self.ack()
+
     def diagnostic(self):
         LOG.debug('Diagnostic device')
         self.send(consts.COMMANDS.DIAGNOSTIC)
@@ -120,6 +129,8 @@ class CDM:
         self.send([consts.COMMANDS.DISPENSE_BILL, cassete_num, count])
         result = self.read()
         self.ack()
+        if result[3] != consts.ERROR_CODES.NORMAL:
+            raise exceptions.CDMError(f'Device has error on dispensing: {result[3]}')
         return result
 
     def get_configuration(self):
