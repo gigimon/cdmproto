@@ -57,6 +57,9 @@ class CDM:
         while True:
             data += self.term.read()
             LOG.debug(f'Read from socket: {data}')
+            if not data:
+                time.sleep(1)
+                continue
             if data[0] == consts.COMMANDS.ACK:
                 self.send(bytes([consts.COMMANDS.ENQ]))
                 data = bytes()
