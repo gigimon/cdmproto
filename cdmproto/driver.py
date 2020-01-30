@@ -54,6 +54,7 @@ class CDM:
         LOG.debug('Start read data')
         data = bytes()
         LOG.debug(f'Check if buffer has data: "{self.term.in_waiting}/{self.term.out_waiting}"')
+        packet_length = None
         while True:
             data += self.term.read()
             LOG.debug(f'Read from socket: {data}')
@@ -64,8 +65,9 @@ class CDM:
                 self.send(bytes([consts.COMMANDS.ENQ]))
                 data = bytes()
                 continue
-
-            if len(data) > 2 and data[-2] == consts.COMMANDS.ETX:
+            if data[0] == consts.COMMANDS.STX and len(data) >= 2:
+                packet_length = data[1]
+            if packet_length and len(data) == (packet_length+4) and data[-2] == consts.COMMANDS.ETX:
                 break
             time.sleep(0.1)
         if data[0] != consts.COMMANDS.ACK and verify:
